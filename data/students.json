@@ -1,0 +1,24 @@
+[
+  {
+    "id": "student_1779965052162",
+    "name": "Test V",
+    "email": "test@gmail.com",
+    "language": "Swahili",
+    "proficiencyLevel": "Beginner",
+    "teacherId": null,
+    "enrollDate": "2026-05-28T10:44:12.162Z",
+    "lastActive": "2026-05-28T10:44:12.162Z",
+    "status": "active"
+  },
+  {
+    "id": "student_1779978479335",
+    "name": "test student",
+    "email": "test2@gmail.com",
+    "language": "Swahili",
+    "proficiencyLevel": "Beginner",
+    "teacherId": null,
+    "enrollDate": "2026-05-28T14:27:59.335Z",
+    "lastActive": "2026-05-28T14:27:59.335Z",
+    "status": "active"
+  }
+]
