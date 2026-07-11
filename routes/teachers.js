@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
 const multer = require('multer');
 
 const { USE_DATABASE, db, TEACHERS_PATH, MATERIALS_PATH, GODADDY_CONFIG } = require('../config/storage');
@@ -113,7 +114,15 @@ router.post('/login', async (req, res) => {
     if (!teacher) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    if (teacher.password !== password) {
+
+    let passwordMatch = false;
+    if (typeof teacher.password === 'string' && teacher.password.startsWith('$2')) {
+      passwordMatch = await bcrypt.compare(password, teacher.password);
+    } else {
+      passwordMatch = password === teacher.password;
+    }
+
+    if (!passwordMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
     if (teacher.status !== 'active') {
