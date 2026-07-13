@@ -88,6 +88,55 @@ function writeMaterials(data) {
   }
 }
 
+function stripLessonMetaFromDescription(description) {
+  if (!description) return '';
+  return description.replace(/\[lessonMeta\].*?\[\/lessonMeta\]/s, '').trim();
+}
+
+function getMaterialUrl(fileName) {
+  if (!fileName) return '';
+  if (GODADDY_CONFIG.uploadPath && GODADDY_CONFIG.uploadUrl) {
+    return `${GODADDY_CONFIG.uploadUrl}${fileName}`;
+  }
+  return `/uploads/materials/${fileName}`;
+}
+
+function parseLessonMetaFromDescription(description) {
+  const result = { lessonType: '', expectedPhrase: '' };
+  if (!description) return result;
+  const match = description.match(/\[lessonMeta\](.*?)\[\/lessonMeta\]/s);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (parsed.lessonType) result.lessonType = parsed.lessonType;
+      if (parsed.expectedPhrase) result.expectedPhrase = parsed.expectedPhrase;
+    } catch (err) {
+      console.error('Could not parse lesson metadata:', err.message);
+    }
+  }
+  return result;
+}
+
+function embedLessonMeta(description, lessonType, expectedPhrase) {
+  const base = (description || '').trim();
+  const meta = {};
+  if (lessonType) meta.lessonType = lessonType;
+  if (expectedPhrase) meta.expectedPhrase = expectedPhrase;
+  if (!Object.keys(meta).length) return base;
+  return `${base}${base ? '\n' : ''}[lessonMeta]${JSON.stringify(meta)}[/lessonMeta]`;
+}
+
+function enrichMaterial(material) {
+  if (!material) return material;
+  const meta = parseLessonMetaFromDescription(material.description);
+  return {
+    ...material,
+    description: stripLessonMetaFromDescription(material.description),
+    lessonType: material.lessonType || meta.lessonType || '',
+    expectedPhrase: material.expectedPhrase || meta.expectedPhrase || ''
+  };
+}
+
 // ─────────────────────────────────────────────
 //  POST /api/teachers/login
 // ─────────────────────────────────────────────
@@ -229,7 +278,7 @@ router.get('/:id', async (req, res) => {
 router.post('/:teacherId/materials', upload.single('file'), async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { title, description, language, level } = req.body;
+    const { title, description, language, level, lessonType, expectedPhrase } = req.body;
     const file = req.file;
 
     if (!title || !language || !level) {
@@ -238,9 +287,15 @@ router.post('/:teacherId/materials', upload.single('file'), async (req, res) => 
     }
 
     const type = file ? path.extname(file.originalname).replace('.','').toUpperCase() : 'PDF';
-    const fileUrl = file
-      ? `${GODADDY_CONFIG.uploadUrl}${file.filename}`
-      : '';
+    const fileUrl = file ? getMaterialUrl(file.filename) : '';
+    const embeddedDescription = embedLessonMeta(description || '', lessonType, expectedPhrase);
+
+    if (file && GODADDY_CONFIG.uploadPath && GODADDY_CONFIG.uploadUrl) {
+      const destPath = path.join(GODADDY_CONFIG.uploadPath, file.filename);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.copyFileSync(file.path, destPath);
+      fs.unlinkSync(file.path);
+    }
 
     let teacher;
     if (USE_DATABASE) {
@@ -267,9 +322,9 @@ router.post('/:teacherId/materials', upload.single('file'), async (req, res) => 
           (id, teacherId, title, description, language, level, type, fileUrl, fileName, fileSize, content, uploadedAt, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')`,
         [
-          materialId, teacherId, title, description || '',
+          materialId, teacherId, title, embeddedDescription,
           language, level, type,
-          file ? `${GODADDY_CONFIG.uploadUrl}${file.filename}` : '',
+          fileUrl,
           file ? file.originalname : '',
           file ? file.size : 0,
           '', createdAt
@@ -279,20 +334,22 @@ router.post('/:teacherId/materials', upload.single('file'), async (req, res) => 
       const materials = readMaterials();
       materials.push({
         id: materialId, teacherId, teacherName: teacher.name,
-        title, description: description || '', language, level,
+        title, description: embeddedDescription, language, level,
         type, content: fileUrl, createdAt, status: 'published'
       });
       writeMaterials(materials);
     }
 
+    const responseMaterial = enrichMaterial({
+      id: materialId, teacherId, teacherName: teacher.name,
+      title, description: embeddedDescription, language, level,
+      type, content: fileUrl, createdAt, status: 'published'
+    });
+
     res.status(201).json({
       success: true,
       message: 'Material uploaded successfully',
-      material: {
-        id: materialId, teacherId, teacherName: teacher.name,
-        title, description: description || '', language, level,
-        type, content: fileUrl, createdAt, status: 'published'
-      }
+      material: responseMaterial
     });
   } catch (err) {
     console.error('Upload material error:', err);
@@ -321,11 +378,11 @@ router.get('/:teacherId/materials', async (req, res) => {
         'SELECT * FROM materials WHERE teacherId = ? ORDER BY uploadedAt DESC',
         [teacherId]
       );
-      materials = matRows;
+      materials = matRows.map(enrichMaterial);
     } else {
       teacher = readTeachers().find(t => t.id === teacherId);
       if (!teacher) return res.status(404).json({ error: 'Teacher not found' });
-      materials = readMaterials().filter(m => m.teacherId === teacherId);
+      materials = readMaterials().filter(m => m.teacherId === teacherId).map(enrichMaterial);
     }
 
     res.json({ teacher: teacher.name, materials });
@@ -384,11 +441,11 @@ router.get('/:teacherId/dashboard', async (req, res) => {
         'SELECT * FROM materials WHERE teacherId = ? ORDER BY uploadedAt DESC',
         [teacherId]
       );
-      teacherMaterials = matRows;
+      teacherMaterials = matRows.map(enrichMaterial);
     } else {
       teacher = readTeachers().find(t => t.id === teacherId);
       if (!teacher) return res.status(404).json({ error: 'Teacher not found' });
-      teacherMaterials = readMaterials().filter(m => m.teacherId === teacherId);
+      teacherMaterials = readMaterials().filter(m => m.teacherId === teacherId).map(enrichMaterial);
     }
 
     res.json({
