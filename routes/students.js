@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
 
-const { USE_DATABASE, db, STUDENTS_PATH } = require('../config/storage');
+const { USE_DATABASE, db, STUDENTS_PATH, TEACHERS_PATH } = require('../config/storage');
 
 const SALT_ROUNDS = 10;
 
@@ -32,6 +32,18 @@ function writeStudents(data) {
   } catch (err) {
     console.error('Error writing students file:', err);
     return false;
+  }
+}
+
+function readTeachers() {
+  try {
+    if (fs.existsSync(TEACHERS_PATH)) {
+      return JSON.parse(fs.readFileSync(TEACHERS_PATH, 'utf-8'));
+    }
+    return [];
+  } catch (err) {
+    console.error('Error reading teachers file:', err);
+    return [];
   }
 }
 
@@ -245,25 +257,37 @@ router.delete('/:id', async (req, res) => {
 
 // ─────────────────────────────────────────────
 //  GET /api/students/teacher/:teacherId
-//  Get all students for a specific teacher
+//  Get all students matching this teacher's language track
+//  (auto-match by language, not manual teacherId assignment)
 // ─────────────────────────────────────────────
 router.get('/teacher/:teacherId', async (req, res) => {
   try {
     const { teacherId } = req.params;
-    let students;
+    let teacherLanguage, students;
 
     if (USE_DATABASE) {
+      const [teacherRows] = await db.execute(
+        'SELECT language FROM teachers WHERE id = ? LIMIT 1', [teacherId]
+      );
+      if (!teacherRows.length) return res.status(404).json({ error: 'Teacher not found' });
+      teacherLanguage = teacherRows[0].language;
+
       const [rows] = await db.execute(
-        'SELECT id, teacherId, name, email, language, proficiencyLevel, enrollDate, lastActive, status FROM students WHERE teacherId = ?', [teacherId]
+        'SELECT id, teacherId, name, email, language, proficiencyLevel, enrollDate, lastActive, status FROM students WHERE language = ?',
+        [teacherLanguage]
       );
       students = rows;
     } else {
+      const teacher = readTeachers().find(t => t.id === teacherId);
+      if (!teacher) return res.status(404).json({ error: 'Teacher not found' });
+      teacherLanguage = teacher.language;
+
       students = readStudents()
-        .filter(s => s.teacherId === teacherId)
+        .filter(s => s.language === teacherLanguage)
         .map(({ password, ...s }) => s);
     }
 
-    res.json({ teacherId, count: students.length, students });
+    res.json({ teacherId, language: teacherLanguage, count: students.length, students });
   } catch (err) {
     console.error('Get teacher students error:', err);
     res.status(500).json({ error: 'Server error' });
