@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
+const ftp = require('basic-ftp');
 
 const { USE_DATABASE, db, TEACHERS_PATH, MATERIALS_PATH, GODADDY_CONFIG } = require('../config/storage');
 
@@ -290,10 +291,24 @@ router.post('/:teacherId/materials', upload.single('file'), async (req, res) => 
     const fileUrl = file ? getMaterialUrl(file.filename) : '';
     const embeddedDescription = embedLessonMeta(description || '', lessonType, expectedPhrase);
 
-    if (file && GODADDY_CONFIG.uploadPath && GODADDY_CONFIG.uploadUrl) {
-      const destPath = path.join(GODADDY_CONFIG.uploadPath, file.filename);
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.copyFileSync(file.path, destPath);
+    if (file && GODADDY_CONFIG.ftpHost) {
+      const client = new ftp.Client();
+      client.ftp.verbose = false;
+      try {
+        await client.access({
+          host: GODADDY_CONFIG.ftpHost,
+          user: GODADDY_CONFIG.ftpUser,
+          password: GODADDY_CONFIG.ftpPassword,
+          secure: false
+        });
+        await client.ensureDir(GODADDY_CONFIG.ftpUploadPath);
+        await client.uploadFrom(file.path, file.filename);
+      } catch (ftpErr) {
+        console.error('FTP upload error:', ftpErr);
+        throw ftpErr;
+      } finally {
+        client.close();
+      }
       fs.unlinkSync(file.path);
     }
 
