@@ -292,6 +292,12 @@ router.post('/:teacherId/materials', upload.single('file'), async (req, res) => 
     const embeddedDescription = embedLessonMeta(description || '', lessonType, expectedPhrase);
 
     if (file && GODADDY_CONFIG.ftpHost) {
+      console.log('FTP config in use:', {
+        host: GODADDY_CONFIG.ftpHost,
+        user: GODADDY_CONFIG.ftpUser,
+        uploadPath: GODADDY_CONFIG.ftpUploadPath
+      });
+
       const client = new ftp.Client();
       client.ftp.verbose = false;
       try {
@@ -301,8 +307,14 @@ router.post('/:teacherId/materials', upload.single('file'), async (req, res) => 
           password: GODADDY_CONFIG.ftpPassword,
           secure: false
         });
+        console.log('FTP connected. Initial working directory:', await client.pwd());
+        console.log('FTP root listing:', (await client.list()).map(f => f.name));
+
         await client.ensureDir(GODADDY_CONFIG.ftpUploadPath);
+        console.log('After ensureDir, working directory:', await client.pwd());
+
         await client.uploadFrom(file.path, file.filename);
+        console.log('Upload complete. Listing after upload:', (await client.list()).map(f => f.name));
       } catch (ftpErr) {
         console.error('FTP upload error:', ftpErr);
         throw ftpErr;
