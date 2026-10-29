@@ -299,13 +299,14 @@ async function callGroqAPI(history, systemPrompt) {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
         ],
         temperature: 0.85, // Slightly higher than onboarding for more varied responses
-        max_tokens: 200,   // Shorter — practice chat should be snappy
+        max_tokens: 1000,   // Shorter — practice chat should be snappy
+        reasoning_effort: 'low',
         top_p: 1
       },
       {

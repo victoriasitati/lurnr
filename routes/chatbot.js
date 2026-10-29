@@ -121,13 +121,13 @@ async function callGroqAPI(history) {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'llama-3.3-70b-versatile', // Currently supported model
+        model: 'openai/gpt-oss-120b', // Currently supported model
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...messages
         ],
         temperature: 0.7,
-        max_tokens: 300,
+        max_tokens: 1000,
         top_p: 1
       },
       {
