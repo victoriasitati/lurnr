@@ -1,0 +1,6 @@
+{
+  "_note": "Recommended order of practice scenarios per language. 'What to do next' suggests the first scenario in this list that the student has not completed. Keys must match the scenario keys in student/dashboard.html (scenarioKeysByLang). Edit the order freely.",
+  "German": ["greetings", "food", "shopping", "travel", "restaurant", "hotel", "clinic", "hospital", "peer", "colleagues", "office", "publicservice", "buergeramt", "verein", "stammtisch", "religious", "elders", "wedding"],
+  "Swahili": ["greetings", "elders", "food", "shopping", "travel", "restaurant", "hotel", "clinic", "hospital", "peer", "colleagues", "office", "publicservice", "religious", "baraza", "wedding"],
+  "Kikuyu": ["greetings", "elders", "food", "shopping", "travel", "restaurant", "hotel", "clinic", "hospital", "peer", "colleagues", "office", "publicservice", "religious", "baraza", "wedding", "kiama", "njohi", "ruracio"]
+}

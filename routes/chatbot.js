@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const { getGikuyuExamples, getPhrasebook } = require('../lib/gikuyuRetrieval');
 
 // Conversation history storage (in-memory for MVP, upgrade to DB in Phase 2)
 const conversationHistories = new Map();
@@ -25,6 +26,52 @@ IMPORTANT ROUTING INSTRUCTIONS:
 - These routing tags help the frontend know where to send the user next
 
 Speak in English unless the user writes in another language. Keep it conversational and encouraging.`;
+
+const GIKUYU_INSTRUCTIONS = `
+
+GIKUYU LANGUAGE GUIDANCE:
+The user is asking about Gikuyu (Kikuyu). The reference material below is there to help you get vocabulary, spelling and diacritics right.
+- Use the examples as a reference for vocabulary, spelling and diacritics.
+- Prefer modern, everyday Gikuyu over biblical phrasing.
+- Always write ĩ and ũ correctly (e.g. Gĩkũyũ, mũndũ, nĩ).
+- Do not quote Bible verses to the user unless they ask for them.
+- Answer the user's Gikuyu question directly and first. Do not open with a greeting or a welcome to Lurnr, and do not ask whether they are a student or a teacher in the same reply. This overrides the onboarding steps above for this reply. You can mention Lurnr's lessons briefly at the end if it fits naturally, or offer to help with another word or phrase.
+- Only give Gikuyu words or phrases you are confident about, i.e. ones in the phrasebook, in the examples, or that you know well. Never invent or guess a Gikuyu word, phrase, greeting or number.
+- If you are not sure, say so plainly (for example "I'm not certain of that one, so please check with a Gikuyu teacher") and offer what you do know, such as the Swahili or English equivalent or a related word from the examples.
+- Do not make up Gikuyu pronunciation guides or translations to fill a gap. A shorter, honest answer is better than a confident wrong one.`;
+
+/** True if this message, or a recent user message, is about Gikuyu/Kikuyu. */
+function isGikuyuConversation(history) {
+  return history
+    .filter(msg => msg.role === 'user')
+    .slice(-3)
+    .some(msg => /\b(a?gikuyu|a?kikuyu)\b/.test(
+      msg.content.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    ));
+}
+
+/** System prompt, with Gikuyu reference material added when the user is asking about Gikuyu. */
+function buildSystemPrompt(history) {
+  if (!isGikuyuConversation(history)) return SYSTEM_PROMPT;
+
+  let prompt = SYSTEM_PROMPT + GIKUYU_INSTRUCTIONS;
+
+  const phrasebook = getPhrasebook();
+  if (phrasebook.length > 0) {
+    prompt += '\n\nGIKUYU PHRASEBOOK (written by native speakers; treat as correct):\n' +
+      phrasebook.map(e => `- ${e.en} = ${e.kik}${e.category ? ` (${e.category})` : ''}${e.notes ? ` [${e.notes}]` : ''}`).join('\n');
+  }
+
+  const lastUserMessage = history.filter(msg => msg.role === 'user').slice(-1)[0].content;
+  const examples = getGikuyuExamples(lastUserMessage, 6);
+  console.log(`[gikuyu] retrieved refs: ${examples.map(e => e.ref).join(', ') || 'none'}`);
+  if (examples.length > 0) {
+    prompt += '\n\nGIKUYU REFERENCE EXAMPLES (English / Gikuyu pairs, for vocabulary, spelling and diacritics only):\n' +
+      examples.map(e => `English: ${e.en}\nGikuyu: ${e.kik}`).join('\n\n');
+  }
+
+  return prompt;
+}
 
 /**
  * POST /api/chat
@@ -54,13 +101,14 @@ router.post('/', async (req, res) => {
     history.push({ role: 'user', content: message });
 
     // Call LLM provider
+    const systemPrompt = buildSystemPrompt(history);
     let botResponse;
     const llmProvider = process.env.LLM_PROVIDER || 'groq';
 
     if (llmProvider === 'groq') {
-      botResponse = await callGroqAPI(history);
+      botResponse = await callGroqAPI(history, systemPrompt);
     } else if (llmProvider === 'ollama') {
-      botResponse = await callOllamaAPI(history);
+      botResponse = await callOllamaAPI(history, systemPrompt);
     } else {
       throw new Error(`Unknown LLM provider: ${llmProvider}`);
     }
@@ -105,7 +153,7 @@ router.post('/', async (req, res) => {
 /**
  * Call Groq API for LLM response
  */
-async function callGroqAPI(history) {
+async function callGroqAPI(history, systemPrompt = SYSTEM_PROMPT) {
   const groqApiKey = process.env.GROQ_API_KEY;
   
   if (!groqApiKey) {
@@ -123,11 +171,12 @@ async function callGroqAPI(history) {
       {
         model: 'openai/gpt-oss-120b', // Currently supported model
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           ...messages
         ],
         temperature: 0.7,
         max_tokens: 1000,
+        reasoning_effort: 'low',
         top_p: 1
       },
       {
@@ -156,11 +205,11 @@ async function callGroqAPI(history) {
 /**
  * Call local Ollama API for LLM response (fallback)
  */
-async function callOllamaAPI(history) {
+async function callOllamaAPI(history, systemPrompt = SYSTEM_PROMPT) {
   const ollamaEndpoint = process.env.OLLAMA_ENDPOINT || 'http://localhost:11434/api/generate';
   
   // Format message history for Ollama
-  let prompt = SYSTEM_PROMPT + '\n\n';
+  let prompt = systemPrompt + '\n\n';
   
   history.forEach(msg => {
     if (msg.role === 'user') {

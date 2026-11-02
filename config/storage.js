@@ -11,6 +11,7 @@ const TEACHERS_PATH = process.env.TEACHERS_PATH || './data/teachers.json';
 const STUDENTS_PATH = process.env.STUDENTS_PATH || './data/students.json';
 const MATERIALS_PATH = process.env.MATERIALS_PATH || './data/materials.json';
 const SESSIONS_PATH = process.env.SESSION_LOG_PATH || './data/sessions.json';
+const PROGRESS_PATH = process.env.PROGRESS_PATH || './data/progress.json';
 
 // GoDaddy MySQL config
 const GODADDY_CONFIG = {
@@ -92,6 +93,9 @@ function initializeDataFiles() {
   if (!fs.existsSync(SESSIONS_PATH)) {
     fs.writeFileSync(SESSIONS_PATH, JSON.stringify([], null, 2));
   }
+  if (!fs.existsSync(PROGRESS_PATH)) {
+    fs.writeFileSync(PROGRESS_PATH, JSON.stringify([], null, 2));
+  }
 }
 
 /**
@@ -106,6 +110,7 @@ function logStorageInfo() {
     console.log(`Students:  ${STUDENTS_PATH}`);
     console.log(`Materials: ${MATERIALS_PATH}`);
     console.log(`Sessions:  ${SESSIONS_PATH}`);
+    console.log(`Progress:  ${PROGRESS_PATH}`);
     console.log('⚠️  WARNING: File mode active — data will not persist after restarts');
   } else {
     console.log(`Database:  ${GODADDY_CONFIG.database}`);
@@ -123,6 +128,7 @@ module.exports = {
   STUDENTS_PATH,
   MATERIALS_PATH,
   SESSIONS_PATH,
+  PROGRESS_PATH,
   GODADDY_CONFIG,
   db,
   ensureDataDir,

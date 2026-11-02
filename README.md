@@ -217,3 +217,22 @@ See Phase 2 deployment guide for details.
 - [ ] Add pronunciation feedback
 - [ ] Handle video lesson playback
 
+
+---
+
+## Gikuyu language support
+
+The landing-page chatbot adds Gikuyu reference material to its prompt when a user asks about Gikuyu/Kikuyu:
+verse pairs retrieved from a parallel Gikuyu/English Bible (`data/gikuyu/bible_parallel.jsonl`, searched with
+MiniSearch in `lib/gikuyuRetrieval.js`) plus any native-speaker entries in `data/gikuyu/phrasebook.json`
+(entries with an empty `kik` field are ignored).
+
+- Rebuild the dataset: `node scripts/buildGikuyuParallel.js <kikuyu-usfm-dir> <web-usfm-dir>`
+  (sources: `https://ebible.org/Scriptures/kik_usfm.zip` and `https://ebible.org/Scriptures/engwebp_usfm.zip`).
+- Try it: start the server, then `node scripts/testGikuyu.js`.
+
+### Attribution
+
+Gikuyu text: Biblica Open Kikuyu Holy Word of God, CC BY-SA 4.0. Original work available for free at www.biblica.com and open.bible
+
+English text: World English Bible (public domain).

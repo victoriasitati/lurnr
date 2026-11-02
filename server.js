@@ -31,12 +31,14 @@ const practiceRoutes = require('./routes/practice');
 const sessionRoutes = require('./routes/sessions');
 const teacherRoutes = require('./routes/teachers');
 const studentRoutes = require('./routes/students');
+const progressRoutes = require('./routes/progress');
 
 app.use('/api/chat', chatbotRoutes);
 app.use('/api/chat/practice', practiceRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/progress', progressRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
