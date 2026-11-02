@@ -11,3 +11,6 @@ build/
 *.swp
 *.swo
 data/sessions.json
+.env
+node_modules/
+*.log
