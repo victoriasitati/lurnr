@@ -19,12 +19,12 @@ const GODADDY_CONFIG = {
   user: process.env.GODADDY_DB_USER?.trim(),
   password: process.env.GODADDY_DB_PASSWORD?.trim(),
   database: process.env.GODADDY_DB_NAME?.trim(),
-  uploadUrl: process.env.GODADDY_UPLOAD_URL || 'https://lurnr.africa/lurnr-data/materials/',
+  uploadUrl: process.env.GODADDY_UPLOAD_URL || 'https://lurnr.africa/uploads/materials/',
   uploadPath: process.env.GODADDY_UPLOAD_PATH || '/home/cpaneluser/public_html/lurnr-data/materials/',
   ftpHost: process.env.GODADDY_FTP_HOST || 'ftp.lurnr.africa',
   ftpUser: process.env.GODADDY_FTP_USER || 'uploads@lurnr.africa',
-  ftpPassword: process.env.GODADDY_FTP_PASSWORD || 'Lurnr2026!',
-  ftpUploadPath: process.env.GODADDY_FTP_UPLOAD_PATH || '/home/xfc9su84kbwb/public_html/lurnr.africa/uploads'
+  ftpPassword: process.env.GODADDY_FTP_PASSWORD,
+  ftpUploadPath: process.env.GODADDY_FTP_UPLOAD_PATH || '/materials'
 };
 
 // ── MySQL CONNECTION POOL ──
